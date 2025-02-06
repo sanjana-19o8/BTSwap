@@ -1,9 +1,33 @@
 import {ConnectButton} from '@rainbow-me/rainbowkit';
-import  {memo} from "react";
+import { memo, useState, useEffect } from "react";
 import Image from "next/image";
 import dynamic from "next/dynamic";
+import { useAccount, useConnect } from 'wagmi';
 
 const ConnectWalletButton = () => {
+    const { connector } = useAccount();
+    const { connect } = useConnect();
+    const [selectedAddress, setSelectedAddress] = useState<string | null>(null);
+    const [addresses, setAddresses] = useState<string[]>([]);
+    const [dropdownOpen, setDropdownOpen] = useState(false);
+
+    const fetchAddresses = async () => {
+        if (connector) {
+            const provider = await connector.getProvider();
+            const accounts = await provider.request({ method: 'eth_accounts' });
+            setAddresses(accounts);
+            if (!selectedAddress && accounts.length > 0) {
+                setSelectedAddress(accounts[0]);
+            }
+        }
+    };
+
+    useEffect(() => {
+        if (dropdownOpen) {
+            fetchAddresses();
+        }
+    }, [dropdownOpen]);
+
     return (
         <ConnectButton.Custom>
             {({
@@ -94,20 +118,45 @@ const ConnectWalletButton = () => {
                                         {/*{chain.name}*/}
                                             </span>
                                     </button>
-                                    <button onClick={openAccountModal} type="button"
-                                            className="btn bg-transparent border-transparent mx-0 text-white w-48 font-bolder"
-                                            style={{
-                                                borderRadius: "12px",
-                                                border: "1px solid #D90429"
+
+                                    <div style={{ position: 'relative', borderRadius: '12px', border: '1px solid #D90429', paddingRight: '10px', display: 'flex' }}>
+                                        <button
+                                            onClick={() => {
+                                                openAccountModal(); // Open modal
                                             }}
-                                    >
-                                       <span>
-                                        {account.displayName}
-                                           {account.displayBalance
-                                               ? ` (${account.displayBalance})`
-                                               : ''}
-                                           </span>
-                                    </button>
+                                            className="btn bg-transparent border-transparent mx-0 text-white w-48 font-bolder flex items-center justify-between"
+                                        >
+                                            <span>
+                                                {selectedAddress ? `${selectedAddress.slice(0, 6)}...${selectedAddress.slice(-4)}` : account.displayName}
+                                            </span>
+                                        </button>
+                                        <button
+                                            onClick={() => {
+                                                setDropdownOpen(!dropdownOpen); // Toggle dropdown
+                                            }}
+                                            className={`ml-2 transition-transform ${dropdownOpen ? 'rotate-180' : ''}`}>
+                                            ▼
+                                        </button>
+
+                                        {dropdownOpen && addresses.length > 1 && (
+                                            <div className="absolute top-full left-0 w-full bg-gray-800 rounded-lg mt-1 shadow-md z-10">
+                                                {addresses.map((addr) => {
+                                                    if(addr != selectedAddress)
+                                                        return (
+                                                            <button
+                                                            key={addr}
+                                                            className="block text-white w-full text-left px-4 py-2 hover:bg-gray-700"
+                                                            onClick={() => {
+                                                                setSelectedAddress(addr);
+                                                                setDropdownOpen(false);
+                                                            }}
+                                                        >
+                                                            {addr.slice(0, 6)}...{addr.slice(-4)}
+                                                        </button>)
+                                                })}
+                                            </div>
+                                        )}
+                                    </div>
                                 </div>
                             );
                         })()}
